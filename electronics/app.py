@@ -104,52 +104,75 @@ def compare_brand(
 
     if brand1 not in allowed_brands or brand2 not in allowed_brands:
         raise HTTPException(status_code=404, detail="Brand not found")
+    
+    # Compare the average price, average rating, number of products, which brand is premium-heavy:
 
     stats={
-        brand1:{"price":[],"rating":[]},
-        brand2:{"price":[],"rating":[]}
+        "brand1":{
+            "price":[],
+            "rating":[]
+        },
+        "brand2":{
+            "price":[],
+            "rating":[]
+        }
     }
 
-    for device in data.values():
-        brand=device.get("brand","").lower().strip()
+    for device_id,device in data.items():
+        brand_name=device.get("brand").strip().lower()
+        if brand_name==brand1:
+            stats["brand1"]["price"].append(device.get("price",0))
+            stats["brand1"]["rating"].append(device.get("rating",0))
 
-        if brand in stats:
-            stats[brand]["price"].append(device.get("price",0))
-            stats[brand]["rating"].append(device.get("rating",0))
+        if brand_name==brand2:
+            stats["brand2"]["price"].append(device.get("price",0))
+            stats["brand2"]["rating"].append(device.get("rating",0))
 
-    def cal_mean(values: list[float]) -> float:
-        if not values:
-            return 0
-        return round(sum(values) / len(values), 2)
+    def calcualte_avg(list_num):
+        return round(sum(list_num)/len(list_num),2) if list_num else 0
     
-    avg_price_1 = cal_mean(stats[brand1]["price"])
-    avg_price_2 = cal_mean(stats[brand2]["price"])
+    avg_price1=calcualte_avg(stats["brand1"]["price"])
+    avg_price2=calcualte_avg(stats["brand2"]["price"])
 
-    premium_brand = (
-        brand1 if avg_price_1 > avg_price_2 else brand2
-        if avg_price_2 > avg_price_1 else "equal"
+    avg_rating1=calcualte_avg(stats["brand1"]["rating"])
+    avg_rating2=calcualte_avg(stats["brand2"]["rating"])
+
+    comparision_result=(
+        brand1 if avg_price1>avg_price2 else brand2
+        if avg_price2>avg_price1 else "Equal"
     )
 
     return {
-        "brand_1": {
-            "name": brand1,
-            "average_price": avg_price_1,
-            "average_rating": cal_mean(stats[brand1]["rating"]),
-            "product_count": len(stats[brand1]["price"])
-        },
-        "brand_2": {
-            "name": brand2,
-            "average_price": avg_price_2,
-            "average_rating": cal_mean(stats[brand2]["rating"]),
-            "product_count": len(stats[brand2]["price"])
-        },
-        "premium_heavy_brand": premium_brand
+        "brand1":f"{brand1} has avg. price:{avg_price1}, avg. rating:{avg_rating1}",
+        "brand2":f"{brand2} has avg. price:{avg_price2}, avg. rating:{avg_rating2}",
+        "premium_brand":f"{comparision_result}"
+
     }
 
 
+@app.get("/product/power/{number}")
+def get_power(number:int=Path(...,description="Enter the n devices you need based on power",example=2,ge=1)):
 
+    data=load_data(file_path)
 
+    result=[]
+    for device_id,device in data.items():
+        power=device.get("power_usage_watts")
+        device_name=device.get("name")
+        result.append({
+            "device_id": device_id,
+            "name": device_name,
+            "power_usage_watts": power
+        })
+        
+    top_n=sorted(result,key=lambda x:x["power_usage_watts"],reverse=True)[:number]
+
+    return {
+        "count":len(top_n),
+        "devices":top_n
+    }
     
+
     
 
 
