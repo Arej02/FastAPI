@@ -173,9 +173,22 @@ def get_power(number:int=Path(...,description="Enter the n devices you need base
     }
     
 
-    
+@app.get("/most_commom_feature/{n}")
+def get_power(n:int=Path(...,description="The n most common feature")):
+    data=load_data(file_path)
 
+    count_dict={}
 
+    for value in data.values():
+        features=value.get("features",[])
+        for feature in features:
+            count_dict[feature]=count_dict.get(feature,0)+1
+
+    sort_dict=dict(sorted(count_dict.items(),key=lambda x:x[1],reverse=True)[:n])
+
+    return {
+        "data":sort_dict
+    }
 
 
 
